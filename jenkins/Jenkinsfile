@@ -77,9 +77,11 @@ pipeline {
                     docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
                     docker compose -f srsgnb_zmq.yaml up -d
                     docker compose -f srsue_5g_zmq.yaml up -d
-                    sleep 60
+                    sleep 30
                     docker logs srsgnb_zmq
                     docker logs srsue_5g_zmq
+                    docker container exec -it srsue_5g_zmq bash -c "ip addr"
+                    docker container exec -it srsue_5g_zmq bash -c "ip route"
                 '''
             }
         }

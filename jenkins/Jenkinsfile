@@ -55,11 +55,11 @@ pipeline {
         }
         stage('Set env variables') {
             steps {
-            sh '''
-                pwd
-                ls -la
-                find . -name ".env"
-                cat .env
+                sh '''
+                    set -a
+                    sed -i 's/^DOCKER_HOST_IP=.*/DOCKER_HOST_IP=172.26.87.236/' .env
+                    . .env
+                    set +a
                 '''
             }
         }

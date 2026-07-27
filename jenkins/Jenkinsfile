@@ -79,6 +79,7 @@ pipeline {
                     docker compose -f srsue_5g_zmq.yaml up -d
                     sleep 60
                     docker logs srsgnb_zmq
+                    docker logs srsue_5g_zmq
                 '''
             }
         }

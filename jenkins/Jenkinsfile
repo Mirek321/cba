@@ -76,6 +76,16 @@ pipeline {
                     docker compose -f sa-deploy.yaml up -d
                     docker exec webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
                     docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
+                    echo "🔧 Prepisujem placeholder-y v originálnom conf súbore..."
+                    # 1. Nahradí IMIS a KI skutočnými hodnotami z .env
+                    sed -i "s/UE1_IMSI/${UE1_IMSI}/g" srslte/ue_5g_zmq.conf
+                    sed -i "s/UE1_KI/${UE1_KI}/g" srslte/ue_5g_zmq.conf
+                    # 2. Nahradí UE1_OP a zároveň zmení 'op' na 'opc'
+                    # Prečo 'opc'? Lebo Open5GS ukladá do MongoDB výlučne 'opc'. 
+                    # Týmto garantujeme 100% zhodu a obchádzame akékoľvek výpočtové chyby v srsRAN.
+                    sed -i "s/^op[ \\t]*=.*/opc = ${UE1_OP}/g" srslte/ue_5g_zmq.conf
+                    echo "✅ Overenie, či sa hodnoty správne dosadili:"
+                    grep -E "^[^#]*(imsi|k =|opc =)" srslte/ue_5g_zmq.conf
                     docker compose -f srsgnb_zmq.yaml up -d
                     docker compose -f srsue_5g_zmq.yaml up -d
                     sleep 30

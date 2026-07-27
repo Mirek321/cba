@@ -71,6 +71,7 @@ pipeline {
                     set +a
                     ls -la metrics
                     ls -la metrics/metrics_init.sh
+                    docker compose -f sa-deploy.yaml run --rm metrics ls -la /mnt/metrics
                 '''
             }
         }

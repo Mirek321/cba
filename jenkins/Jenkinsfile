@@ -42,15 +42,24 @@ pipeline {
                         fi'''
                 }
             }
-        }
+            }
 
-              stage('Docker Build docker_srsran') {
+        stage('Docker Build docker_srsran') {
             steps {
                 dir('srsran') {
                     sh ''' if ! docker image inspect docker_srsran:latest >/dev/null 2>&1; then
                             docker build -t docker_srsran:latest .
                         fi'''
                 }
+            }
+        }
+        stage('Set env variables') {
+            steps {
+                sh '''
+                    set -a
+                    sed -i 's/^DOCKER_HOST_IP=.*/DOCKER_HOST_IP=172.26.87.236/' .env
+                    source .env
+                '''
             }
         }
     }

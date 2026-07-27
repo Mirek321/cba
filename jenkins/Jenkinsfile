@@ -28,7 +28,7 @@ pipeline {
         stage('Docker Build docker_open5gs') {
             steps{
                 dir('docker_open5gs/base') {
-                    sh '''docker build --no-cache --force-rm -t docker_open5gs . '''
+                    sh ''' pwd && ls -la '''
                 }
             }
         }

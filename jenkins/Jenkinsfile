@@ -72,6 +72,7 @@ pipeline {
                     docker compose -f srsgnb_zmq.yaml down -v
                     docker compose -f srsue_5g_zmq.yaml down -v
                     docker compose -f sa-deploy.yaml down -v
+                    sleep 15
                     docker compose -f sa-deploy.yaml up -d
                     docker exec webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
                     docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
@@ -82,6 +83,9 @@ pipeline {
                     docker logs srsue_5g_zmq
                     docker container exec srsue_5g_zmq bash -c "ip addr"
                     docker container exec srsue_5g_zmq bash -c "ip route"
+                    docker exec mongo mongosh open5gs --eval "db.subscribers.find({imsi: '001011234567895'}).pretty()"
+                    docker logs amf
+                    docker logs smf
                 '''
             }
         }

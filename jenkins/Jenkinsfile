@@ -27,7 +27,7 @@ pipeline {
         }
         stage('Docker Build docker_open5gs') {
             steps{
-                dir('docker_open5gs/base') {
+                dir('base') {
                     sh ''' pwd && ls -la '''
                 }
             }

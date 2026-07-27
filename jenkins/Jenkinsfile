@@ -80,8 +80,8 @@ pipeline {
                     sleep 30
                     docker logs srsgnb_zmq
                     docker logs srsue_5g_zmq
-                    docker container exec -it srsue_5g_zmq bash -c "ip addr"
-                    docker container exec -it srsue_5g_zmq bash -c "ip route"
+                    docker container exec srsue_5g_zmq bash -c "ip addr"
+                    docker container exec srsue_5g_zmq bash -c "ip route"
                 '''
             }
         }

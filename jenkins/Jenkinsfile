@@ -69,7 +69,7 @@ pipeline {
                     set -a
                     . ./.env
                     set +a
-                    ls -la metrics
+                    docker compose -f sa-deploy.yaml up -d
                 '''
             }
         }

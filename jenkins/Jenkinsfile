@@ -71,8 +71,8 @@ pipeline {
                     set +a
                     docker compose -f sa-deploy.yaml down
                     docker compose -f sa-deploy.yaml up -d
-                    docker exec -it webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
-                    docker exec -it webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
+                    docker exec webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
+                    docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
                 '''
             }
         }

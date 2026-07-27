@@ -69,9 +69,8 @@ pipeline {
                     set -a
                     . ./.env
                     set +a
-                    ls -la metrics
-                    ls -la metrics/metrics_init.sh
-                    docker compose -f sa-deploy.yaml run --rm metrics ls -la /mnt/metrics
+                    docker compose -f sa-deploy.yaml config | grep -A20 metrics
+                    -v /var/run/docker.sock:/var/run/docker.sock
                 '''
             }
         }

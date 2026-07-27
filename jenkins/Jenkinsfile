@@ -59,6 +59,7 @@ pipeline {
                 pwd
                 ls -la
                 find . -name ".env"
+                cat .env
                 '''
             }
         }

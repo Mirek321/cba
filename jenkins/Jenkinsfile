@@ -34,5 +34,14 @@ pipeline {
                 }
             }
         }
+            stage('Docker Build docker_srslte') {
+            steps {
+                dir('srslte') {
+                    sh ''' if ! docker image inspect docker_srslte:latest >/dev/null 2>&1; then
+                            docker build -t docker_srslte:latest .
+                        fi'''
+                }
+            }
+        }
     }
 }

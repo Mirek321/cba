@@ -73,6 +73,11 @@ pipeline {
                     docker compose -f sa-deploy.yaml up -d
                     docker exec webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
                     docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
+                    docker compose -f srsgnb_zmq.yaml up -d
+                    docker compose -f srsue_5g_zmq.yaml up -d
+                    docker container exec -it srsue_5g_zmq bash
+                    ip addr
+                    ip route
                 '''
             }
         }

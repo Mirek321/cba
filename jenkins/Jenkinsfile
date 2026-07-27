@@ -69,10 +69,7 @@ pipeline {
                     set -a
                     . ./.env
                     set +a
-                    ls -la /home/jenkins/workspace/Open5Gs/metrics
-                    docker run --rm \
-                    -v /home/jenkins/workspace/Open5Gs/metrics:/test \
-                    alpine ls -la /test
+                    docker compose -f sa-deploy.yaml up -d
                 '''
             }
         }

@@ -66,36 +66,59 @@ pipeline {
         stage('Run 5G Core') {
             steps {
                 sh '''
-                    set -a
-                    . ./.env
-                    set +a
-                    docker compose -f srsgnb_zmq.yaml down -v
-                    docker compose -f srsue_5g_zmq.yaml down -v
-                    docker compose -f sa-deploy.yaml down -v
-                    sleep 15
-                    docker compose -f sa-deploy.yaml up -d
-                    docker exec webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
-                    docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
-                    echo "🔧 Prepisujem placeholder-y v originálnom conf súbore..."
-                    # 1. Nahradí IMIS a KI skutočnými hodnotami z .env
-                    sed -i "s/UE1_IMSI/${UE1_IMSI}/g" srslte/ue_5g_zmq.conf
-                    sed -i "s/UE1_KI/${UE1_KI}/g" srslte/ue_5g_zmq.conf
-                    # 2. Nahradí UE1_OP a zároveň zmení 'op' na 'opc'
-                    # Prečo 'opc'? Lebo Open5GS ukladá do MongoDB výlučne 'opc'. 
-                    # Týmto garantujeme 100% zhodu a obchádzame akékoľvek výpočtové chyby v srsRAN.
-                    sed -i "s/^op[ \\t]*=.*/opc = ${UE1_OP}/g" srslte/ue_5g_zmq.conf
-                    echo "✅ Overenie, či sa hodnoty správne dosadili:"
-                    grep -E "^[^#]*(imsi|k =|opc =)" srslte/ue_5g_zmq.conf
-                    docker compose -f srsgnb_zmq.yaml up -d
-                    docker compose -f srsue_5g_zmq.yaml up -d
-                    sleep 30
-                    docker logs srsgnb_zmq
-                    docker logs srsue_5g_zmq
-                    docker container exec srsue_5g_zmq bash -c "ip addr"
-                    docker container exec srsue_5g_zmq bash -c "ip route"
-                    docker exec mongo mongosh open5gs --eval "db.subscribers.find({imsi: '001011234567895'}).pretty()"
-                    docker logs amf
-                    docker logs smf
+                set -a
+                . ./.env
+                set +a
+
+                docker compose -f srsgnb_zmq.yaml down -v
+                docker compose -f srsue_5g_zmq.yaml down -v
+                docker compose -f sa-deploy.yaml down -v
+                sleep 15
+
+                docker compose -f sa-deploy.yaml up -d
+
+                # 1. Pridanie UE (tento skript chybně uloží hodnotu do 'opc')
+                docker exec webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
+                docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
+
+                # 2. 🛠️ OPRAVA DATABÁZY (Moja cesta): 
+                # Vynútime, aby Open5GS používal 'op' namiesto 'opc', čo presne zodpovedá dokumentácii a srsRAN.
+                echo "🔧 Opravujem typ kľúča v MongoDB z 'opc' na 'op'..."
+                docker exec mongo mongosh open5gs --eval '
+                    db.subscribers.updateOne(
+                        { imsi: "'"${UE1_IMSI}"'" }, 
+                        { 
+                            $set: { "security.op": "'"${UE1_OP}"'" }, 
+                            $unset: { "security.opc": "" } 
+                        }
+                    )
+                '
+
+                echo "🔧 Prepisujem placeholder-y v originálnom conf súbore..."
+                # Jednoduché a spoľahlivé nahradenie textových reťazcov (bez zložitých regexov)
+                sed -i "s/UE1_IMSI/${UE1_IMSI}/g" srslte/ue_5g_zmq.conf
+                sed -i "s/UE1_KI/${UE1_KI}/g" srslte/ue_5g_zmq.conf
+                sed -i "s/UE1_OP/${UE1_OP}/g" srslte/ue_5g_zmq.conf
+
+                echo "✅ Overenie, či sa hodnoty správne dosadili (malo by ukazovať 'op = ...'):"
+                grep -E "^[^#]*(imsi|k =|op =)" srslte/ue_5g_zmq.conf
+
+                docker compose -f srsgnb_zmq.yaml up -d
+                docker compose -f srsue_5g_zmq.yaml up -d
+                sleep 30
+
+                echo "📊 Logy a diagnostika:"
+                docker logs --tail 50 srsgnb_zmq
+                docker logs --tail 50 srsue_5g_zmq
+                docker container exec srsue_5g_zmq bash -c "ip addr"
+                docker container exec srsue_5g_zmq bash -c "ip route"
+
+                # Overenie, čo je skutočne v MongoDB (malo by ukazovať 'op' s hodnotou a 'opc' ako null/chýbajúce)
+                echo "📊 Stav v MongoDB:"
+                docker exec mongo mongosh open5gs --eval "db.subscribers.find({imsi: '${UE1_IMSI}'}, {'security.op': 1, 'security.opc': 1, 'imsi': 1}).pretty()"
+
+                echo "📊 AMF Logy (hľadaj 'Authentication successful'):"
+                docker logs --tail 30 amf
                 '''
             }
         }

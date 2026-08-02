@@ -34,7 +34,7 @@ pipeline {
                 }
             }
         }
-            stage('Docker Build docker_srslte') {
+        stage('Docker Build docker_srslte') {
             steps {
                 dir('srslte') {
                     sh ''' if ! docker image inspect docker_srslte:latest >/dev/null 2>&1; then
@@ -42,7 +42,7 @@ pipeline {
                         fi'''
                 }
             }
-            }
+        }
 
         stage('Docker Build docker_srsran') {
             steps {
@@ -66,52 +66,71 @@ pipeline {
         stage('Run 5G Core') {
             steps {
                 sh '''
+                # Load the environment variables from the .env file and export them to the shell environment
                 set -a
                 . ./.env
                 set +a
 
+                # Stop and remove any existing containers from the previous run to avoid conflicts
                 docker compose -f srsgnb_zmq.yaml down -v
                 docker compose -f srsue_5g_zmq.yaml down -v
                 docker compose -f sa-deploy.yaml down -v
                 sleep 15
 
+                # Start the 5G core network using the docker compose file and wait for it to be ready
                 docker compose -f sa-deploy.yaml up -d
+                sleep 15
 
-                # 1. Pridanie UE (tento skript chybně uloží hodnotu do 'opc')
-                docker exec webui misc/db/open5gs-dbctl add_ue_with_apn $UE1_IMSI $UE1_KI $UE1_OP internet
-                docker exec webui misc/db/open5gs-dbctl update_apn $UE1_IMSI ims 0
+                # Add a new subscriber to the MongoDB database with the specified IMSI, KI, OP, and APN values.
+                # This is necessary for the UE to register and authenticate with the 5G core network.
+                docker exec webui misc/db/open5gs-dbctl add_ue_with_apn \$UE1_IMSI \$UE1_KI \$UE1_OP internet
+                docker exec webui misc/db/open5gs-dbctl update_apn \$UE1_IMSI ims 0
 
-                # 2. 🛠️ OPRAVA DATABÁZY (Moja cesta): 
-                # Vynútime, aby Open5GS používal 'op' namiesto 'opc', čo presne zodpovedá dokumentácii a srsRAN.
-                echo "🔧 Opravujem typ kľúča v MongoDB z 'opc' na 'op'..."
+                # Update the subscriber's security parameters in the MongoDB database.
+                # This is necessary for the UE to authenticate successfully because we are using OP instead of OPC.
                 docker exec mongo mongosh open5gs --eval '
                     db.subscribers.updateOne(
-                        { imsi: "'"${UE1_IMSI}"'" }, 
-                        { 
-                            $set: { "security.op": "'"${UE1_OP}"'" }, 
-                            $unset: { "security.opc": "" } 
+                        { imsi: "'"\${UE1_IMSI}"'" },
+                        {
+                            \$set: { "security.op": "'"\${UE1_OP}"'" },
+                            \$unset: { "security.opc": "" }
                         }
                     )
                 '
+
+                # Start the gNB and UE containers using the docker compose files and wait for them to be ready
                 docker compose -f srsgnb_zmq.yaml up -d
                 docker compose -f srsue_5g_zmq.yaml up -d
                 sleep 30
 
-                echo "📊 Logy a diagnostika:"
+                # Check the logs of the gNB and UE containers to verify that they are running correctly
                 docker logs --tail 50 srsgnb_zmq
                 docker logs --tail 50 srsue_5g_zmq
+
+                # Check the network configuration of the srsue_5g_zmq container
                 docker container exec srsue_5g_zmq bash -c "ip addr"
                 docker container exec srsue_5g_zmq bash -c "ip route"
+
+                # Change the default route in the srsue_5g_zmq container
+                # to use the tun_srsue interface instead of eth0. This is
+                # necessary for the UE to reach the internet through the
+                # 5G core network.
                 docker container exec srsue_5g_zmq bash -c "ip route del default via 172.22.0.1 dev eth0"
                 docker container exec srsue_5g_zmq bash -c "ip route add default via 192.168.100.2 dev tun_srsue"
+
+                # Check the network configuration of the srsue_5g_zmq container again
+                # to verify that the default route has been changed.
                 docker container exec srsue_5g_zmq bash -c "ip route"
                 docker container exec srsue_5g_zmq bash -c "ping -c 5 youtube.com"
-                # Overenie, čo je skutočne v MongoDB (malo by ukazovať 'op' s hodnotou a 'opc' ako null/chýbajúce)
-                echo "📊 Stav v MongoDB:"
-                docker exec mongo mongosh open5gs --eval "db.subscribers.find({imsi: '${UE1_IMSI}'}, {'security.op': 1, 'security.opc': 1, 'imsi': 1}).pretty()"
 
-                echo "📊 AMF Logy (hľadaj 'Authentication successful'):"
-                docker logs --tail 30 amf
+                # Check the subscriber security settings in MongoDB to verify the update.
+                docker exec mongo mongosh open5gs --eval "
+                    db.subscribers.find(
+                        {imsi: '\$UE1_IMSI'},
+                        {'security.op': 1, 'security.opc': 1, 'imsi': 1}
+                    ).pretty()
+                "
+
                 '''
             }
         }

@@ -90,9 +90,9 @@ pipeline {
                 # This is necessary for the UE to authenticate successfully because we are using OP instead of OPC.
                 docker exec mongo mongosh open5gs --eval '
                     db.subscribers.updateOne(
-                        { imsi: "'"\${UE1_IMSI}"'" },
+                        { imsi: "'"$UE1_IMSI"'" },
                         {
-                            \$set: { "security.op": "'"\${UE1_OP}"'" },
+                            $set: { "security.op": "'"$UE1_OP"'" },
                             \$unset: { "security.opc": "" }
                         }
                     )

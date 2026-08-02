@@ -93,16 +93,6 @@ pipeline {
                         }
                     )
                 '
-
-                echo "🔧 Prepisujem placeholder-y v originálnom conf súbore..."
-                # Jednoduché a spoľahlivé nahradenie textových reťazcov (bez zložitých regexov)
-                sed -i "s/UE1_IMSI/${UE1_IMSI}/g" srslte/ue_5g_zmq.conf
-                sed -i "s/UE1_KI/${UE1_KI}/g" srslte/ue_5g_zmq.conf
-                sed -i "s/UE1_OP/${UE1_OP}/g" srslte/ue_5g_zmq.conf
-
-                echo "✅ Overenie, či sa hodnoty správne dosadili (malo by ukazovať 'op = ...'):"
-                grep -E "^[^#]*(imsi|k =|op =)" srslte/ue_5g_zmq.conf
-
                 docker compose -f srsgnb_zmq.yaml up -d
                 docker compose -f srsue_5g_zmq.yaml up -d
                 sleep 30

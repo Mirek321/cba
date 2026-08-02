@@ -102,7 +102,10 @@ pipeline {
                 docker logs --tail 50 srsue_5g_zmq
                 docker container exec srsue_5g_zmq bash -c "ip addr"
                 docker container exec srsue_5g_zmq bash -c "ip route"
-
+                docker container exec srsue_5g_zmq bash -c "ip route del default via 172.22.0.1 dev eth0"
+                docker container exec srsue_5g_zmq bash -c "ip route add default via 192.168.100.2 dev tun_srsue"
+                docker container exec srsue_5g_zmq bash -c "ip route"
+                docker container exec srsue_5g_zmq bash -c "ping -c 5 youtube.com"
                 # Overenie, čo je skutočne v MongoDB (malo by ukazovať 'op' s hodnotou a 'opc' ako null/chýbajúce)
                 echo "📊 Stav v MongoDB:"
                 docker exec mongo mongosh open5gs --eval "db.subscribers.find({imsi: '${UE1_IMSI}'}, {'security.op': 1, 'security.opc': 1, 'imsi': 1}).pretty()"

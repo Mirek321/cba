@@ -99,7 +99,8 @@ pipeline {
                 sleep 15
                 '''
             }
-            stage('Remove containers') {
+        }
+        stage('Remove containers') {
                 steps {
                     sh '''
                     docker compose -f srsgnb_zmq.yaml down -v
@@ -107,7 +108,7 @@ pipeline {
                     docker compose -f sa-deploy.yaml down -v
                     '''
                 }
-            }
+        }
             stage('Add subscriber') {
                 steps {
                     sh '''
@@ -185,5 +186,4 @@ pipeline {
                 }
             }
         }
-    }
 }

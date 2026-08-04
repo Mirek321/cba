@@ -1,3 +1,24 @@
+def loadEnv() {
+    def envFile = readFile('.env')
+
+    envFile.split('\n').each { line ->
+        line = line.trim()
+
+        // Ignore empty lines and comments
+        if (!line || line.startsWith('#')) {
+            return
+        }
+
+        def parts = line.split('=', 2)
+
+        if (parts.size() == 2) {
+            def key = parts[0].trim()
+            def value = parts[1].trim()
+
+            env[key] = value
+        }
+    }
+}
 pipeline {
     agent {
         label 'docker-test'
@@ -13,6 +34,13 @@ pipeline {
     }
 
     stages {
+        stage('Init') {
+            steps {
+                script {
+                    loadEnv()
+                }
+            }
+        }
         stage('Debug') {
             steps {
                 sh '''
@@ -66,29 +94,35 @@ pipeline {
         stage('Run 5G Core') {
             steps {
                 sh '''
-                # Load the environment variables from the .env file and export them to the shell environment
-                set -a
-                . ./.env
-                set +a
-
-                # Stop and remove any existing containers from the previous run to avoid conflicts
-                docker compose -f srsgnb_zmq.yaml down -v
-                docker compose -f srsue_5g_zmq.yaml down -v
-                docker compose -f sa-deploy.yaml down -v
-                sleep 15
-
                 # Start the 5G core network using the docker compose file and wait for it to be ready
                 docker compose -f sa-deploy.yaml up -d
                 sleep 15
-
+                '''
+            }
+            stage('Remove containers') {
+                steps {
+                    sh '''
+                    docker compose -f srsgnb_zmq.yaml down -v
+                    docker compose -f srsue_5g_zmq.yaml down -v
+                    docker compose -f sa-deploy.yaml down -v
+                    '''
+                }
+            }
+            stage('Add subscriber') {
+                steps {
+                    sh '''
                 # Add a new subscriber to the MongoDB database with the specified IMSI, KI, OP, and APN values.
                 # This is necessary for the UE to register and authenticate with the 5G core network.
                 docker exec webui misc/db/open5gs-dbctl add_ue_with_apn \$UE1_IMSI \$UE1_KI \$UE1_OP internet
                 docker exec webui misc/db/open5gs-dbctl update_apn \$UE1_IMSI ims 0
-
-                # Update the subscriber's security parameters in the MongoDB database.
+                '''
+                }
+            }
+            stage('Update subscriber security') {
+                sh '''
+                 # Update the subscriber's security parameters in the MongoDB database.
                 # This is necessary for the UE to authenticate successfully because we are using OP instead of OPC.
-                docker exec mongo mongosh open5gs --eval '
+                    docker exec mongo mongosh open5gs --eval '
                     db.subscribers.updateOne(
                         { imsi: "'"$UE1_IMSI"'" },
                         {
@@ -97,7 +131,10 @@ pipeline {
                         }
                     )
                 '
-
+                '''
+            }
+            stage('Start containers gNB and UE') {
+                sh '''
                 # Start the gNB and UE containers using the docker compose files and wait for them to be ready
                 docker compose -f srsgnb_zmq.yaml up -d
                 docker compose -f srsue_5g_zmq.yaml up -d
@@ -107,7 +144,11 @@ pipeline {
                 docker logs --tail 50 srsgnb_zmq
                 docker logs --tail 50 srsue_5g_zmq
 
-                # Check the network configuration of the srsue_5g_zmq container
+                 '''
+            }
+            stage('Check network configuration') {
+                sh '''
+                 # Check the network configuration of the srsue_5g_zmq container
                 docker container exec srsue_5g_zmq bash -c "ip addr"
                 docker container exec srsue_5g_zmq bash -c "ip route"
 
@@ -122,7 +163,10 @@ pipeline {
                 # to verify that the default route has been changed.
                 docker container exec srsue_5g_zmq bash -c "ip route"
                 docker container exec srsue_5g_zmq bash -c "ping -c 5 youtube.com"
-
+                '''
+            }
+            stage('Verify subscriber security settings') {
+                sh '''
                 # Check the subscriber security settings in MongoDB to verify the update.
                 docker exec mongo mongosh open5gs --eval "
                     db.subscribers.find(
@@ -130,7 +174,6 @@ pipeline {
                         {'security.op': 1, 'security.opc': 1, 'imsi': 1}
                     ).pretty()
                 "
-
                 '''
             }
         }

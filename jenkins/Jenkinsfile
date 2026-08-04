@@ -1,5 +1,5 @@
 def loadEnv() {
-    def envFile = readFile('.env')
+    def envFile = readFile('docker_open5gs/.env')
 
     envFile.split('\n').each { line ->
         line = line.trim()
@@ -34,13 +34,6 @@ pipeline {
     }
 
     stages {
-        stage('Init') {
-            steps {
-                script {
-                    loadEnv()
-                }
-            }
-        }
         stage('Debug') {
             steps {
                 sh '''
@@ -51,6 +44,13 @@ pipeline {
         stage('Github Checkout') {
             steps {
                 git 'https://github.com/herlesupreeth/docker_open5gs.git'
+            }
+        }
+        stage('Init') {
+            steps {
+                script {
+                    loadEnv()
+                }
             }
         }
         stage('Docker Build docker_open5gs') {

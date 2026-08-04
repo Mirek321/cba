@@ -119,7 +119,8 @@ pipeline {
                 }
             }
             stage('Update subscriber security') {
-                sh '''
+                steps {
+                    sh '''
                  # Update the subscriber's security parameters in the MongoDB database.
                 # This is necessary for the UE to authenticate successfully because we are using OP instead of OPC.
                     docker exec mongo mongosh open5gs --eval '
@@ -132,9 +133,11 @@ pipeline {
                     )
                 '
                 '''
+                }
             }
             stage('Start containers gNB and UE') {
-                sh '''
+                steps {
+                    sh '''
                 # Start the gNB and UE containers using the docker compose files and wait for them to be ready
                 docker compose -f srsgnb_zmq.yaml up -d
                 docker compose -f srsue_5g_zmq.yaml up -d
@@ -145,9 +148,11 @@ pipeline {
                 docker logs --tail 50 srsue_5g_zmq
 
                  '''
+                }
             }
             stage('Check network configuration') {
-                sh '''
+                steps {
+                    sh '''
                  # Check the network configuration of the srsue_5g_zmq container
                 docker container exec srsue_5g_zmq bash -c "ip addr"
                 docker container exec srsue_5g_zmq bash -c "ip route"
@@ -164,9 +169,11 @@ pipeline {
                 docker container exec srsue_5g_zmq bash -c "ip route"
                 docker container exec srsue_5g_zmq bash -c "ping -c 5 youtube.com"
                 '''
+                }
             }
             stage('Verify subscriber security settings') {
-                sh '''
+                steps {
+                    sh '''
                 # Check the subscriber security settings in MongoDB to verify the update.
                 docker exec mongo mongosh open5gs --eval "
                     db.subscribers.find(
@@ -175,6 +182,7 @@ pipeline {
                     ).pretty()
                 "
                 '''
+                }
             }
         }
     }

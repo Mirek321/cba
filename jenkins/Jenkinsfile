@@ -46,6 +46,15 @@ pipeline {
                 git 'https://github.com/herlesupreeth/docker_open5gs.git'
             }
         }
+        stage('Debug files') {
+    steps {
+        sh '''
+            pwd
+            ls -la
+            find . -name ".env"
+        '''
+    }
+}
         stage('Init') {
             steps {
                 script {

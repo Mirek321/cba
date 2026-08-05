@@ -100,15 +100,7 @@ pipeline {
                 '''
             }
         }
-        stage('Run 5G Core') {
-            steps {
-                sh '''
-                # Start the 5G core network using the docker compose file and wait for it to be ready
-                docker compose -f sa-deploy.yaml up -d
-                sleep 15
-                '''
-            }
-        }
+    
         stage('Remove containers') {
                 steps {
                     sh '''
@@ -117,6 +109,16 @@ pipeline {
                     docker compose -f sa-deploy.yaml down -v
                     '''
                 }
+        }
+
+        stage('Run 5G Core') {
+            steps {
+                sh '''
+                # Start the 5G core network using the docker compose file and wait for it to be ready
+                docker compose -f sa-deploy.yaml up -d
+                sleep 15
+                '''
+            }
         }
             stage('Add subscriber') {
                 steps {

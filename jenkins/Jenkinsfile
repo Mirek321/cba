@@ -1,5 +1,5 @@
 def loadEnv() {
-    def envFile = readFile('docker_open5gs/.env')
+    def envFile = readFile('.env')
 
     envFile.split('\n').each { line ->
         line = line.trim()
